@@ -28,36 +28,28 @@ outbreakApp <- function(...) {
       div(
         id = "form",
 
-        textInputUI(
+        selectize_input(
           "facility",
           label_mandatory("Facility Name"),
           choices = df$facility,
           selected = NULL
         ),
-        # selectizeInput(
-        #   "facility",
-        #   label_mandatory("Facility Name"),
-        #   choices = df$facility,
-        #   selected = NULL,
-        #   options = list(create = TRUE)
-        # ),
         "Facility address: ",
         fluidRow(
-          textInputUI(
+          selectize_input(
             "facility_address",
             label_mandatory("Street Address"),
             choices = NULL
           ),
           textInput2("facility_postal_code", "Postal Code", maxlength = 7),
-          selectizeInput("facility_city", "City", choices = cities),
+          selectize_input("facility_city", "City", choices = cities),
           ## revisit and consider adding flex-wrap: wrap;
           style = "display: flex; justify-content: space-between; max-width: 1000px;"
         ),
-        selectizeInput(
+        selectize_input(
           "outbreak_type",
           "Is this an enteric or respiratory outbreak?",
-          choices = c("Enteric", "Respiratory"),
-          options = list(onInitialize = I("function() { this.setValue(''); }"))
+          choices = c("Enteric", "Respiratory")
         ),
         fluidRow(
           dateSelectUI("outbreak_symptom_onset_dt", "When was the first symptom onset?"),
@@ -69,22 +61,17 @@ outbreakApp <- function(...) {
     )
   server <- function(input, output, session) {
 
-    #facility_address <- textInputServer("facility_address", reactive(input$facility))
-    #outbreak_symptom_onset_dt <- dateSelectServer("outbreak_symptom_onset_dt",)
-    #outbreak_report_dt <- dateSelectServer("outbreak_report_dt")
-
-    observeEvent(input$facility, {
+    observeEvent(input$facility-input, {
       ## only want to fill in the info if the facility is known
-      if (input$facility %in% df$facility) {
-        address <- df$facility_address[df$facility %in% input$facility]
-        updateSelectizeInput(session, "facility_address", selected = address, choices = address)
+      ## otherwise just keep the input as-is
+      if (input$facility-input %in% df$facility) {
+          facility <- input$facility-input
+          address <- df$facility_address[df$facility %in% facility]
+          updateSelectizeInput(session, "facility_address", selected = address, choices = address)
 
-        city <- df$facility_city[df$facility %in% input$facility]
-        updateSelectizeInput(session, "facility_city", selected = city, choices = city)
-      } #else {
-      #   updateSelectizeInput(session, "facility_address", selected = input$facility_address)
-      #   updateSelectizeInput(session, "facility_city", selected = input$facility_city)
-      # }
+          city <- df$facility_city[df$facility %in% facility]
+          updateSelectizeInput(session, "facility_city", selected = city, choices = city)
+        }
     }, ignoreNULL = FALSE)
 
   }

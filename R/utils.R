@@ -24,3 +24,9 @@ textInput2 <- function(inputId, label, value = "", width = NULL,
   }
 
 }
+
+is_blank <- function(x) {
+  x == ""
+}
+
+

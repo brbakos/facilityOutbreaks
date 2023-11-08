@@ -1,5 +1,8 @@
-textInputUI <- function(id, label, choices = NULL, ...) {
-  #ns <- NS(id)
+#' selectizeInput with some modifications
+#'
+#' @details This is a wrapper for selectizeInput which sets some default parameters that are commonly used.
+#'  Users need to be able to create new entries, and we want the default start up to always be blank.
+selectize_input <- function(id, label, choices = NULL, ...) {
   selectizeInput(
     id,
     label,
@@ -7,12 +10,7 @@ textInputUI <- function(id, label, choices = NULL, ...) {
     options =
       list(
         create = TRUE,
-        onInitialize = I("function() { this.setValue(''); }")),
-    ...
+        onInitialize = I("function() { this.setValue(''); }"),
+        ...)
   )
-}
-
-textInputServer <- function(id) {
-  moduleServer(id, function(input, output, session) {
-  })
 }
