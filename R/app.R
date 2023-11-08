@@ -1,22 +1,14 @@
 df <-
   data.frame(
-    facility = c("A", "B", "C"),
-    facility_address = c("123 Rainbow Road", "111 Memory Lane", "321 Sesame Street"),
-    facility_city = c("Vancouver", "Paris", "foo")
+    facility = c("SUPERCALLAFRAGILISTICEXPIALADOCIOUS", "SUPERCALLAFRAGILISTICEXPIALADOCIOUS", "B", "C"),
+    facility_address = c("123 Rainbow Road", "401 Not Found St", "111 Memory Lane", "321 Sesame Street"),
+    facility_city = c("Vancouver", "The Web", "Paris", "foo")
   )
+df <- df |> tidyr::unite("united_fac", tidyr::everything(), sep = ",", remove = FALSE)
 
 fields_mandatory <- c("facility_name", "facility_address", "outbreak_report_dt")
 
 cities <- c("Vancouver", "Richmond", "Sechelt", "North Vancouver")
-
-label_mandatory <- function(label) {
-  tagList(
-    label,
-    span("*", class = "mandatory_star")
-  )
-}
-
-app_css <- ".mandatory_star { color: red; }"
 
 outbreakApp <- function(...) {
   ui <-
@@ -27,6 +19,7 @@ outbreakApp <- function(...) {
 
       div(
         id = "form",
+        style = "display: flex; flex-direction: column;",
 
         selectize_input(
           "facility",
@@ -39,6 +32,8 @@ outbreakApp <- function(...) {
           selectize_input(
             "facility_address",
             label_mandatory("Street Address"),
+            ## consider adding address as a choice...
+            ## I'm not sure it's necessary
             choices = NULL
           ),
           textInput2("facility_postal_code", "Postal Code", maxlength = 7),
@@ -52,8 +47,8 @@ outbreakApp <- function(...) {
           choices = c("Enteric", "Respiratory")
         ),
         fluidRow(
-          dateSelectUI("outbreak_symptom_onset_dt", "When was the first symptom onset?"),
-          dateSelectUI("outbreak_report_dt", "What day was the outbreak reported?"),
+          date_select("outbreak_symptom_onset_dt", "When was the first symptom onset?"),
+          date_select("outbreak_report_dt", "What day was the outbreak reported?"),
           style = "display: flex; justify-content: flex-start;"
         ),
         actionButton("submit", "Submit", class = "btn-primary")
@@ -61,17 +56,41 @@ outbreakApp <- function(...) {
     )
   server <- function(input, output, session) {
 
-    observeEvent(input$facility-input, {
+    observeEvent(input$facility, {
       ## only want to fill in the info if the facility is known
       ## otherwise just keep the input as-is
-      if (input$facility-input %in% df$facility) {
-          facility <- input$facility-input
-          address <- df$facility_address[df$facility %in% facility]
-          updateSelectizeInput(session, "facility_address", selected = address, choices = address)
+      if (input$facility %in% df$facility) {
+          facility <- input$facility
 
           city <- df$facility_city[df$facility %in% facility]
-          updateSelectizeInput(session, "facility_city", selected = city, choices = city)
-        }
+          address <- df$facility_address[df$facility %in% facility]
+          if (length(address) > 1 | length(city) > 1) {
+
+            dupes <- df[df$facility %in% input$facility , ]
+            dupes_display <- dupes |> dplyr::pull(united_fac)
+
+            showModal(
+              modalDialog(
+                title = "Duplicate records for facility",
+                HTML(paste0("There is more than one record for ", facility, ".",
+                         " Please select the correct record below. <br><br>",
+                         "It's also recommended to clean the database so facility names are unique.<br>")),
+                selectize_input("duplicate_facilities", "Facilities: ", multiple = FALSE, choices = dupes_display),
+                footer = actionButton("dismiss_modal",label = "Submit Selection")
+                )
+              )
+
+            observeEvent(input$dismiss_modal, {
+              selected_df <- df[df$united_fac %in% input$duplicate_facilities , ]
+              updateSelectizeInput(session, "facility_address", selected = selected_df$facility_address, choices = selected_df$facility_address)
+              updateSelectizeInput(session, "facility_city", selected = selected_df$facility_city, choices = selected_df$facility_city)
+              removeModal()
+            })
+          } else {
+            updateSelectizeInput(session, "facility_address", selected = address, choices = address)
+            updateSelectizeInput(session, "facility_city", selected = city, choices = city)
+          }
+      }
     }, ignoreNULL = FALSE)
 
   }
