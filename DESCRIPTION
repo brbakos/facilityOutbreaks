@@ -15,5 +15,7 @@ Config/testthat/edition: 3
 Depends: 
     shiny
 Imports: 
+    dplyr,
     lubridate,
-    shinyjs
+    shinyjs,
+    tidyr
