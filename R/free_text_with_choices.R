@@ -4,7 +4,12 @@ textInputUI <- function(id, label, choices = NULL, ...) {
     id,
     label,
     choices = choices,
-    ...)
+    options =
+      list(
+        create = TRUE,
+        onInitialize = I("function() { this.setValue(''); }")),
+    ...
+  )
 }
 
 textInputServer <- function(id) {
