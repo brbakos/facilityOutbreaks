@@ -1,7 +1,8 @@
 df <-
   data.frame(
     facility = c("A", "B", "C"),
-    facility_address = c("123 Rainbow Road", "111 Memory Lane", "321 Sesame Street")
+    facility_address = c("123 Rainbow Road", "111 Memory Lane", "321 Sesame Street"),
+    facility_city = c("Vancouver", "Paris", "foo")
   )
 
 fields_mandatory <- c("facility_name", "facility_address", "outbreak_report_dt")
@@ -27,14 +28,11 @@ outbreakApp <- function(...) {
       div(
         id = "form",
 
-
         textInputUI(
           "facility",
           label_mandatory("Facility Name"),
           choices = df$facility,
-          selected = NULL,
-         # value = "",
-          options = list(create = TRUE)
+          selected = NULL
         ),
         # selectizeInput(
         #   "facility",
@@ -48,18 +46,18 @@ outbreakApp <- function(...) {
           textInputUI(
             "facility_address",
             label_mandatory("Street Address"),
-            choices = NULL,
-            options = list(create = TRUE)
+            choices = NULL
           ),
           textInput2("facility_postal_code", "Postal Code", maxlength = 7),
           selectizeInput("facility_city", "City", choices = cities),
           ## revisit and consider adding flex-wrap: wrap;
           style = "display: flex; justify-content: space-between; max-width: 1000px;"
         ),
-        selectInput(
+        selectizeInput(
           "outbreak_type",
           "Is this an enteric or respiratory outbreak?",
-          c("Enteric", "Respiratory")
+          choices = c("Enteric", "Respiratory"),
+          options = list(onInitialize = I("function() { this.setValue(''); }"))
         ),
         fluidRow(
           dateSelectUI("outbreak_symptom_onset_dt", "When was the first symptom onset?"),
@@ -71,23 +69,23 @@ outbreakApp <- function(...) {
     )
   server <- function(input, output, session) {
 
-    vals <- reactiveValues(fac = "herpa")
-
-    observeEvent(input$facility, {
-      vals$fac <- "A"
-    })
     #facility_address <- textInputServer("facility_address", reactive(input$facility))
     #outbreak_symptom_onset_dt <- dateSelectServer("outbreak_symptom_onset_dt",)
     #outbreak_report_dt <- dateSelectServer("outbreak_report_dt")
 
-    updateFacilites <-
-      reactive({
-        data <- df
-        data <- data[data$facility %in% vals$fac , ]
-        updateSelectizeInput(session, "facility_address", choices = data$facility_address,
-                             #selected = data$facility_address,
-                             server = TRUE)
-    })
+    observeEvent(input$facility, {
+      ## only want to fill in the info if the facility is known
+      if (input$facility %in% df$facility) {
+        address <- df$facility_address[df$facility %in% input$facility]
+        updateSelectizeInput(session, "facility_address", selected = address, choices = address)
+
+        city <- df$facility_city[df$facility %in% input$facility]
+        updateSelectizeInput(session, "facility_city", selected = city, choices = city)
+      } #else {
+      #   updateSelectizeInput(session, "facility_address", selected = input$facility_address)
+      #   updateSelectizeInput(session, "facility_city", selected = input$facility_city)
+      # }
+    }, ignoreNULL = FALSE)
 
   }
   shinyApp(ui, server, ...)
