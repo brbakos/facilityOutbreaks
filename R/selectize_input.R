@@ -16,15 +16,28 @@
 #'
 #'  @seealso \code{\link[shinydashboard]{selectizeInput}}
 #'
-selectize_input <- function(id, label, choices = NULL, ...) {
-  selectizeInput(
-    id,
-    label,
-    choices = choices,
-    options =
-      list(
-        create = TRUE,
-        onInitialize = I("function() { this.setValue(''); }"),
-        ...)
-  )
+selectize_input <- function(id, label, choices = NULL, max_length = NULL, ...) {
+
+  tag <-
+    selectizeInput(
+      id,
+      label,
+      choices = choices,
+      options =
+        list(
+          create = TRUE,
+          onInitialize = I("function() { this.setValue(''); }"),
+          ...
+        )
+    )
+
+  if (!is.null(max_length)) {
+    htmltools::tagQuery(tag)$
+      children("input")$
+      addAttrs(maxlength=max_length)$
+      allTags()
+  } else {
+    tag
+  }
+
 }
