@@ -10,12 +10,25 @@ fields_mandatory <- c("facility_name", "facility_address", "outbreak_report_dt")
 
 cities <- c("Vancouver", "Richmond", "Sechelt", "North Vancouver")
 
+## note to self - the attempt to address dupes current blocks all entry after;
+## must be a problem with input$ for the facility or something
 outbreakApp <- function(...) {
   ui <-
     fluidPage(
 
       shinyjs::useShinyjs(),
       shinyjs::inlineCSS(app_css),
+
+
+      ## https://stackoverflow.com/questions/45245681/observe-modal-easy-closing-in-shiny
+      tags$script(HTML(
+        "$(document).on('shown.bs.modal','#shiny-modal', function () {
+          Shiny.setInputValue(id = 'modal_visible', value = true);
+        });
+        $(document).on('hidden.bs.modal','#shiny-modal', function () {
+          Shiny.setInputValue(id = 'modal_visible', value = false);
+        });"
+      )),
 
       div(
         id = "form",
@@ -56,15 +69,19 @@ outbreakApp <- function(...) {
     )
   server <- function(input, output, session) {
 
+    values <- reactiveValues(modal_closed = T)
+
     observeEvent(input$facility, {
       ## only want to fill in the info if the facility is known
       ## otherwise just keep the input as-is
-      if (input$facility %in% df$facility) {
+      if (input$facility %in% df$facility & values$modal_closed) {
           facility <- input$facility
 
           city <- df$facility_city[df$facility %in% facility]
           address <- df$facility_address[df$facility %in% facility]
           if (length(address) > 1 | length(city) > 1) {
+
+            values$modal_closed <- F
 
             dupes <- df[df$facility %in% input$facility , ]
             dupes_display <- dupes |> dplyr::pull(united_fac)
@@ -76,15 +93,19 @@ outbreakApp <- function(...) {
                          " Please select the correct record below. <br><br>",
                          "It's also recommended to clean the database so facility names are unique.<br>")),
                 selectize_input("duplicate_facilities", "Facilities: ", multiple = FALSE, choices = dupes_display),
-                footer = actionButton("dismiss_modal",label = "Submit Selection")
+                footer = actionButton("dismiss_modal", label = "Submit Selection")
                 )
               )
 
             observeEvent(input$dismiss_modal, {
-              selected_df <- df[df$united_fac %in% input$duplicate_facilities , ]
-              updateSelectizeInput(session, "facility_address", selected = selected_df$facility_address, choices = selected_df$facility_address)
-              updateSelectizeInput(session, "facility_city", selected = selected_df$facility_city, choices = selected_df$facility_city)
-              removeModal()
+              if (input$modal_visible) {
+                selected_df <- df[df$united_fac %in% input$duplicate_facilities , ]
+                updateSelectizeInput(session, "facility_address", selected = selected_df$facility_address, choices = selected_df$facility_address)
+                updateSelectizeInput(session, "facility_city", selected = selected_df$facility_city, choices = selected_df$facility_city)
+                tags$script(HTML("Shiny.setInputValue('duplicate_facilities', null);
+                               Shiny.setInputValue('dismiss_modal', null);"))
+                removeModal()
+              }
             })
           } else {
             updateSelectizeInput(session, "facility_address", selected = address, choices = address)
