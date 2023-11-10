@@ -3,16 +3,23 @@ outbreakFormInput <- function(id) {
   ns <- NS(id)
 
   fluidPage(
+
     ## https://stackoverflow.com/questions/45245681/observe-modal-easy-closing-in-shiny
-    tags$script(HTML(
+    tags$head(tags$script(HTML(
+        # "$(document).on('shown.bs.modal','.shiny-modal', function () {
+        #   Shiny.setInputValue(id = 'modal_visible', value = true);
+        # });
+        # $(document).on('hidden.bs.modal','.shiny-modal', function () {
+        #   Shiny.setInputValue(id = 'modal_visible', value = false);
+        # });"
       paste0(
-      "$(document).on('shown.bs.modal','#shiny-modal', function () {
-          Shiny.setInputValue(id = ", ns("modal_visible"), "value = true);
+        "$(document).on('shown.bs.modal','.modal-dupes', function () {
+          Shiny.setInputValue(id = '", ns("modal_dupe_visible"), "', value = true);
         });
-        $(document).on('hidden.bs.modal','#shiny-modal', function () {
-          Shiny.setInputValue(id = ", ns("modal_visible"), "value = false);
+        $(document).on('hidden.bs.modal','.modal-dupes', function () {
+          Shiny.setInputValue(id = '", ns("modal_dupe_visible"), "', value = false);
         });")
-    )),
+    ))),
 
     div(
       id = ns("form"),
@@ -55,28 +62,36 @@ outbreakFormInput <- function(id) {
 
 outbreakFormServer <- function(id) {
   moduleServer(id, function (input, output, session) {
+
+    values <- reactiveValues(modal_open = F)
+
     observeEvent(input$facility, {
       ## only want to fill in the info if the facility is known
       ## otherwise just keep the input as-is
       if (input$facility %in% df$facility) {
-        facility <- input$facility
 
-        city <- df$facility_city[df$facility %in% facility]
-        address <- df$facility_address[df$facility %in% facility]
+        city <- df$facility_city[df$facility %in% input$facility]
+        address <- df$facility_address[df$facility %in% input$facility]
+
         if (length(address) > 1 | length(city) > 1) {
+
+          rm(city, address)
 
           dupes <- df[df$facility %in% input$facility , ]
           dupes_display <- dupes |> dplyr::pull(united_fac)
 
-          showModal(
+          modal_dupes <-
             modalDialog(
               title = "Duplicate records for facility",
               HTML(
                 paste0(
-                  "There is more than one record for ", facility, ".",
+                  "There is more than one record for ", input$facility, ".",
                   " Please select the correct record below. <br><br>",
                   "It's also recommended to clean the database so facility names are unique.<br><br>")),
               selectize_input(
+                ## -------------- NOTE -------------------
+                ## because this is an input in the server
+                ## we need to call the active namespace with session$ns()
                 session$ns("duplicate_facilities"),
                 "Facilities: ",
                 multiple = FALSE,
@@ -84,10 +99,21 @@ outbreakFormServer <- function(id) {
               ),
               footer = actionButton(session$ns("dismiss_modal"), label = "Submit Selection")
             )
+          modal_dupes <- tagAppendAttributes(modal_dupes, class = "modal-dupes")
+
+          showModal(
+            modal_dupes
           )
 
+          values$modal_open <- T
+
           observeEvent(session$input$dismiss_modal, {
-            #if (input$modal_visible) {
+           # if (input$modal_visible) {
+            if (input$modal_dupe_visible) {
+            # if (shinyjs::runjs(paste0("$document.getElementById(", session$ns("modal_visible"),"));"))) {
+            # if (session$ns("modal_visible")) {
+            #if (validate(session$input$modal_visible)) {
+            # if (values$modal_open) {
               selected_df <- df[df$united_fac %in% input$duplicate_facilities , ]
               updateSelectizeInput(
                 session,
@@ -102,9 +128,11 @@ outbreakFormServer <- function(id) {
                 choices = dupes$facility_city
               )
               removeModal()
-          #}
-          })
-        } else {
+
+              shinyjs::reset(session$input$dismiss_modal)
+              shinyjs::reset(session$input$duplicate_facilities)
+           }
+        }) } else {
           updateSelectizeInput(session, "facility_address", selected = address, choices = address)
           updateSelectizeInput(session, "facility_city", selected = city, choices = city)
         }
