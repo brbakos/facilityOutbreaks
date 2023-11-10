@@ -8,5 +8,3 @@ label_mandatory <- function(label) {
     span("*", class = "mandatory_star")
   )
 }
-
-app_css <- ".mandatory_star { color: red; }"
