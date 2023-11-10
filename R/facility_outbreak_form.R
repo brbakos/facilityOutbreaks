@@ -6,12 +6,6 @@ outbreakFormInput <- function(id) {
 
     ## https://stackoverflow.com/questions/45245681/observe-modal-easy-closing-in-shiny
     tags$head(tags$script(HTML(
-        # "$(document).on('shown.bs.modal','.shiny-modal', function () {
-        #   Shiny.setInputValue(id = 'modal_visible', value = true);
-        # });
-        # $(document).on('hidden.bs.modal','.shiny-modal', function () {
-        #   Shiny.setInputValue(id = 'modal_visible', value = false);
-        # });"
       paste0(
         "$(document).on('shown.bs.modal','.modal-dupes', function () {
           Shiny.setInputValue(id = '", ns("modal_dupe_visible"), "', value = true);
@@ -108,12 +102,7 @@ outbreakFormServer <- function(id) {
           values$modal_open <- T
 
           observeEvent(session$input$dismiss_modal, {
-           # if (input$modal_visible) {
             if (input$modal_dupe_visible) {
-            # if (shinyjs::runjs(paste0("$document.getElementById(", session$ns("modal_visible"),"));"))) {
-            # if (session$ns("modal_visible")) {
-            #if (validate(session$input$modal_visible)) {
-            # if (values$modal_open) {
               selected_df <- df[df$united_fac %in% input$duplicate_facilities , ]
               updateSelectizeInput(
                 session,
