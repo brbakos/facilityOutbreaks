@@ -1,10 +1,17 @@
 outbreakFormInput <- function(id) {
 
+  multiple_inputs_row_style <- "display: inline-flex; flex-wrap: wrap;"
+  tab_tag <- span(class = "tab", "")
+
   ns <- NS(id)
 
   fluidPage(
 
-    ## https://stackoverflow.com/questions/45245681/observe-modal-easy-closing-in-shiny
+    h1("New Facility Outbreak Entry Form"),
+    ## for some reason when the modal is opened and closed the first time,
+    ## it will instantly close if opened a second time
+    ## the third time it works, but that's not acceptable for userse
+    ## this JS will make sure the modal always opens and closes when a duplicate facility is selected
     tags$head(tags$script(HTML(
       paste0(
         "$(document).on('shown.bs.modal','.modal-dupes', function () {
@@ -17,15 +24,20 @@ outbreakFormInput <- function(id) {
 
     div(
       id = ns("form"),
-      style = "display: flex; flex-direction: column; align:",
+      style = "display: inline-flex; flex-direction: column; flex-wrap: wrap;",
 
-      selectize_input(
-        ns("facility"),
-        label_mandatory("Facility Name"),
-        choices = df$facility,
-        selected = NULL
+      fluidRow(
+        div(
+        selectize_input(
+          ns("facility"),
+          label_mandatory("Facility Name"),
+          choices = df$facility,
+          width = "100%",
+          selected = NULL
+        ))
       ),
-      "Facility address: ",
+
+      h3("Facility Information"),
       fluidRow(
         selectize_input(
           ns("facility_address"),
@@ -34,22 +46,64 @@ outbreakFormInput <- function(id) {
           ## I'm not sure it's necessary
           choices = NULL
         ),
-        selectize_input(ns("facility_postal_code"), "Postal Code", maxlength = 7),
-        selectize_input(ns("facility_city"), "City", choices = cities),
-        ## revisit and consider adding flex-wrap: wrap;
-        style = "display: flex; justify-content: space-between; max-width: 1000px;"
+        tab_tag,
+        selectize_input(
+          ns("facility_postal_code"),
+          "Postal Code",
+          maxlength = 7
+        ),
+        tab_tag,
+        selectize_input(
+          ns("facility_city"),
+          "City",
+          choices = cities
+        ),
+        style = multiple_inputs_row_style
       ),
-      selectize_input(
-        ns("outbreak_type"),
-        "Is this an enteric or respiratory outbreak?",
-        choices = c("Enteric", "Respiratory")
+
+      h3("Outbreak Information"),
+      fluidRow(
+        ## we ask for enteric vs resp so GI or resp illness can be specified
+        ## if the organism is unknown
+        selectize_input(
+          ns("outbreak_type"),
+          "Is this an enteric or respiratory outbreak?",
+          choices = c("Enteric", "Respiratory")
+        )
       ),
       fluidRow(
-        date_select(ns("outbreak_symptom_onset_dt"), "When was the first symptom onset?"),
-        date_select(ns("outbreak_report_dt"), "What day was the outbreak reported?"),
-        style = "display: flex; justify-content: flex-start;"
+        selectize_input(
+          ns("organism"),
+          "Organism",
+          ## ----- NOTE ----:
+          ## there should be additional lookup sheet for organisms
+          ## that way when new ones show up they should be added
+          choices = c("Influenza", "COVID-19", "Norovirus")
+        ),
+        tab_tag,
+        div(id = "subtype_placeholder"),
+        style = multiple_inputs_row_style
       ),
-      actionButton(ns("submit-outbreak"), "Submit", class = "btn-primary", style = "max-width: 200px")
+      fluidRow(
+        date_select(
+          ns("outbreak_symptom_onset_dt"),
+          "When was the first symptom onset?"
+        ),
+        tab_tag,
+        date_select(
+          ns("outbreak_report_dt"),
+          "What day was the outbreak reported?"
+        ),
+        style = multiple_inputs_row_style
+      ),
+
+
+      actionButton(
+        ns("submit-outbreak"),
+        "Submit",
+        class = "btn-primary",
+        style = "max-width: 200px"
+      )
     )
   )
 }
@@ -59,45 +113,45 @@ outbreakFormServer <- function(id) {
 
     values <- reactiveValues(modal_open = F)
 
+    ## when a known facility is selected, we want to auto-fill the elements
+    ## we also want users to be aware of duplicate facility names
     observeEvent(input$facility, {
-      ## only want to fill in the info if the facility is known
-      ## otherwise just keep the input as-is
       if (input$facility %in% df$facility) {
 
-        city <- df$facility_city[df$facility %in% input$facility]
-        address <- df$facility_address[df$facility %in% input$facility]
+        our_facility <- df[df$facility %in% input$facility , ]
+        our_facility <- as.list(our_facility)
 
-        if (length(address) > 1 | length(city) > 1) {
+        if (any(sapply(our_facility, function(x) length(x) > 1))) {
 
-          rm(city, address)
-
-          dupes <- df[df$facility %in% input$facility , ]
+          dupes <- do.call(dplyr::bind_cols, our_facility)
           dupes_display <- dupes |> dplyr::pull(united_fac)
 
           modal_dupes <-
             modalDialog(
               title = "Duplicate records for facility",
+              easyClose = TRUE,
               HTML(
                 paste0(
                   "There is more than one record for ", input$facility, ".",
                   " Please select the correct record below. <br><br>",
-                  "It's also recommended to clean the database so facility names are unique.<br><br>")),
+                  "It's also recommended to clean the database so facility names are unique.<br><br>"
+                )
+              ),
               selectize_input(
                 ## -------------- NOTE -------------------
                 ## because this is an input in the server
                 ## we need to call the active namespace with session$ns()
                 session$ns("duplicate_facilities"),
-                "Facilities: ",
+                "Addresses: ",
                 multiple = FALSE,
-                choices = dupes_display
+                choices = dupes_display,
+                width = "100%"
               ),
               footer = actionButton(session$ns("dismiss_modal"), label = "Submit Selection")
             )
           modal_dupes <- tagAppendAttributes(modal_dupes, class = "modal-dupes")
 
-          showModal(
-            modal_dupes
-          )
+          showModal(modal_dupes)
 
           values$modal_open <- T
 
@@ -117,13 +171,20 @@ outbreakFormServer <- function(id) {
                 choices = dupes$facility_city
               )
               removeModal()
-
-              shinyjs::reset(session$input$dismiss_modal)
-              shinyjs::reset(session$input$duplicate_facilities)
            }
         }) } else {
-          updateSelectizeInput(session, "facility_address", selected = address, choices = address)
-          updateSelectizeInput(session, "facility_city", selected = city, choices = city)
+          updateSelectizeInput(
+            session,
+            "facility_address",
+            selected = our_facility$facility_address,
+            choices = our_facility$facility_address
+          )
+          updateSelectizeInput(
+            session,
+            "facility_city",
+            selected = our_facility$facility_city,
+            choices = our_facility$facility_city
+          )
         }
       }
     }, ignoreNULL = FALSE)

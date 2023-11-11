@@ -5,8 +5,10 @@
 #'
 #'
 #'  @param id The id to refer to the element on the server side
-#'  @param label What the question will be on the form
+#'  @param label Text that will be displayed with the input box
 #'  @param choices What values will be seen by the user in the drop down menu
+#'  @param width Size of the input box
+#'  @param max_length Set a character limit for the value
 #'  @param ... Other optional arguments supplied to `options`
 #'
 #'  @returns Some HTML that produces a dropdown for users to select options.
@@ -16,13 +18,14 @@
 #'
 #'  @seealso \code{\link[shinydashboard]{selectizeInput}}
 #'
-selectize_input <- function(id, label, choices = NULL, max_length = NULL, ...) {
+selectize_input <- function(id, label, choices = NULL, width = NULL, max_length = NULL, ...) {
 
   tag <-
     selectizeInput(
       id,
       label,
       choices = choices,
+      width = width,
       options =
         list(
           create = TRUE,

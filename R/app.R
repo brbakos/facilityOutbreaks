@@ -18,7 +18,13 @@ outbreakApp <- function(...) {
     fluidPage(
 
       shinyjs::useShinyjs(),
-      shinyjs::inlineCSS(".mandatory_star { color: red; }"),
+      shinyjs::inlineCSS(
+        ".mandatory_star { color: red; }
+        .tab {
+          display: inline-block;
+          margin-left: 4em;
+        }"
+      ),
 
       outbreakFormInput("form")
     )
