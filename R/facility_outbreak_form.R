@@ -114,11 +114,13 @@ outbreakFormServer <- function(id) {
     ## when a known facility is selected, we want to auto-fill the elements
     ## we also want users to be aware of duplicate facility names
     observeEvent(input$facility, {
+
+      our_facility <- df[df$facility %in% input$facility , ]
+      our_facility <- as.list(our_facility)
+
       if (input$facility %in% df$facility) {
 
-        our_facility <- df[df$facility %in% input$facility , ]
-        our_facility <- as.list(our_facility)
-
+        ## if facility selected is duplicated
         if (any(sapply(our_facility, function(x) length(x) > 1))) {
 
           dupes <- do.call(dplyr::bind_cols, our_facility)
@@ -171,8 +173,9 @@ outbreakFormServer <- function(id) {
                 choices = dupes$facility_city
               )
               removeModal()
-           }
-        }) } else {
+            }
+            ## if facility selected is not a duplicate
+        }) } else if (all(sapply(our_facility, function(x) length(x) == 1))) {
           updateSelectizeInput(
             session,
             "facility_address",
@@ -192,11 +195,43 @@ outbreakFormServer <- function(id) {
             choices = our_facility$facility_city
           )
         }
+        ## Facility is not in the known list
+      } else {
+        updateSelectizeInput(
+          session,
+          "facility_address",
+          selected = "",
+          choices = df$facility_address
+        )
+        updateSelectizeInput(
+          session,
+          "facility_postal_code",
+          selected = "",
+          choices = df$facility_postal_code
+        )
+        updateSelectizeInput(
+          session,
+          "facility_city",
+          selected = "",
+          choices = df$facility_city
+        )
       }
     }, ignoreNULL = FALSE)
 
     observeEvent(input$submit_outbreak, {
+      if (!input$facility %in% our_facility$facility) {
+        new_facility <-
+          data.frame(
+            facility = input$facility,
+            facility_address = input$facility_address,
+            facility_postal_code = input$facility_postal_code,
+            facility_city = input$facility_city
+          )
 
+        df <- dplyr::bind_rows(df, new_facility)
+
+        print(df)
+      }
     })
   })
 }
