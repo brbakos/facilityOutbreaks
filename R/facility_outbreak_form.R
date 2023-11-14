@@ -7,11 +7,12 @@ outbreakFormInput <- function(id) {
 
   fluidPage(
 
-    h1("New Facility Outbreak Entry Form"),
+    h1("Facility Outbreak Entry Form"),
     ## for some reason when the modal is opened and closed the first time,
     ## it will instantly close if opened a second time
-    ## the third time it works, but that's not acceptable for userse
+    ## the third time it works, but that's not acceptable for users
     ## this JS will make sure the modal always opens and closes when a duplicate facility is selected
+    ## (provided the user changed the facility in between)
     tags$head(tags$script(HTML(
       paste0(
         "$(document).on('shown.bs.modal','.modal-dupes', function () {
@@ -97,9 +98,8 @@ outbreakFormInput <- function(id) {
         style = multiple_inputs_row_style
       ),
 
-
       actionButton(
-        ns("submit-outbreak"),
+        ns("submit_outbreak"),
         "Submit",
         class = "btn-primary",
         style = "max-width: 200px"
@@ -110,8 +110,6 @@ outbreakFormInput <- function(id) {
 
 outbreakFormServer <- function(id) {
   moduleServer(id, function (input, output, session) {
-
-    values <- reactiveValues(modal_open = F)
 
     ## when a known facility is selected, we want to auto-fill the elements
     ## we also want users to be aware of duplicate facility names
@@ -138,9 +136,6 @@ outbreakFormServer <- function(id) {
                 )
               ),
               selectize_input(
-                ## -------------- NOTE -------------------
-                ## because this is an input in the server
-                ## we need to call the active namespace with session$ns()
                 session$ns("duplicate_facilities"),
                 "Addresses: ",
                 multiple = FALSE,
@@ -153,16 +148,21 @@ outbreakFormServer <- function(id) {
 
           showModal(modal_dupes)
 
-          values$modal_open <- T
-
           observeEvent(session$input$dismiss_modal, {
             if (input$modal_dupe_visible) {
               selected_df <- df[df$united_fac %in% input$duplicate_facilities , ]
+
               updateSelectizeInput(
                 session,
                 "facility_address",
                 selected = selected_df$facility_address,
                 choices = dupes$facility_address
+              )
+              updateSelectizeInput(
+                session,
+                "facility_postal_code",
+                selected = selected_df$facility_postal_code,
+                choices = dupes$facility_postal_code
               )
               updateSelectizeInput(
                 session,
@@ -181,6 +181,12 @@ outbreakFormServer <- function(id) {
           )
           updateSelectizeInput(
             session,
+            "facility_postal_code",
+            selected = our_facility$facility_postal_code,
+            choices = our_facility$facility_postal_code
+          )
+          updateSelectizeInput(
+            session,
             "facility_city",
             selected = our_facility$facility_city,
             choices = our_facility$facility_city
@@ -188,5 +194,9 @@ outbreakFormServer <- function(id) {
         }
       }
     }, ignoreNULL = FALSE)
+
+    observeEvent(input$submit_outbreak, {
+
+    })
   })
 }
