@@ -219,7 +219,7 @@ outbreakFormServer <- function(id) {
     }, ignoreNULL = FALSE)
 
     observeEvent(input$submit_outbreak, {
-      if (!input$facility %in% our_facility$facility) {
+      if (!input$facility %in% df$facility) {
         new_facility <-
           data.frame(
             facility = input$facility,
