@@ -14,12 +14,15 @@ recording and reporting facility outbreaks. The application will give
 groups control over their data and help to store it in a more organized
 way.
 
-Current tasks:  
-\* Complete the entry application form
+Current tasks:
 
-Next up:  
-\* Storage and management of data so multiple users can access the data
-in the same secure location
+- Complete the entry application form
 
-In the future:  
-\* Data visualization and analysis of trends
+Next up:
+
+- Storage and management of data so multiple users can access the data
+  in the same secure location
+
+In the future:
+
+- Data visualization and analysis of trends
