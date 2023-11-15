@@ -1,3 +1,12 @@
+#' Facility Outbreak Form Module
+#'
+#' @description Entry form for a new facility outbreak
+#'
+#' @param id Internal parameters for {shiny}.
+#'
+#' @noRd
+#'
+#' @importFrom shiny NS tagList
 outbreakFormInput <- function(id) {
 
   multiple_inputs_row_style <- "display: inline-flex; flex-wrap: wrap;"
@@ -11,6 +20,7 @@ outbreakFormInput <- function(id) {
     ## for some reason when the modal is opened and closed the first time,
     ## it will instantly close if opened a second time
     ## the third time it works, but that's not acceptable for users
+    ## I assume this is somehow my fault, but
     ## this JS will make sure the modal always opens and closes when a duplicate facility is selected
     ## (provided the user changed the facility in between)
     tags$head(tags$script(HTML(
@@ -38,6 +48,7 @@ outbreakFormInput <- function(id) {
         ))
       ),
 
+      #' *Facility info*
       h3("Facility Information"),
       fluidRow(
         selectize_input(
@@ -56,26 +67,27 @@ outbreakFormInput <- function(id) {
         tab_tag,
         selectize_input(
           ns("facility_city"),
-          "City",
+          label_mandatory("City"),
           choices = cities
         ),
         style = multiple_inputs_row_style
       ),
 
+      #' *Outbreak info*
       h3("Outbreak Information"),
       fluidRow(
         ## we ask for enteric vs resp so GI or resp illness can be specified
         ## if the organism is unknown
         selectize_input(
           ns("outbreak_type"),
-          "Is this an enteric or respiratory outbreak?",
+          label_mandatory("Is this an enteric or respiratory outbreak?"),
           choices = c("Enteric", "Respiratory")
         )
       ),
       fluidRow(
         selectize_input(
-          ns("organism"),
-          "Organism",
+          ns("pathogen"),
+          "Pathogen",
           ## ----- NOTE ----:
           ## there should be additional lookup sheet for organisms
           ## that way when new ones show up they should be added
@@ -98,6 +110,19 @@ outbreakFormInput <- function(id) {
         style = multiple_inputs_row_style
       ),
 
+      fluidRow(
+        div(id = ns("additional_units")),
+        div(
+          actionButton(
+            inputId = ns("add_floor"),
+            style   = "border: 0px",
+            label   = NULL,
+            icon("circle-plus")
+          )
+        ),
+      ),
+
+      #' *Submit*
       actionButton(
         ns("submit_outbreak"),
         "Submit",
@@ -109,7 +134,15 @@ outbreakFormInput <- function(id) {
 }
 
 outbreakFormServer <- function(id) {
+  ns <- NS(id)
   moduleServer(id, function (input, output, session) {
+
+    ## for adding floors/units affected
+    count <- reactiveVal(0)
+    my_list <- tagList()
+    count(0)
+    multiple_inputs_row_style <- "display: inline-flex; flex-wrap: wrap;"
+    tab_tag <- span(class = "tab", "")
 
     ## when a known facility is selected, we want to auto-fill the elements
     ## we also want users to be aware of duplicate facility names
@@ -217,6 +250,38 @@ outbreakFormServer <- function(id) {
         )
       }
     }, ignoreNULL = FALSE)
+
+    add_item <- function(count) {
+      div(
+        id = paste0("div_", count),
+        style = "display: inline-flex; flex-direction: column; flex-wrap: wrap;",
+        fluidRow(
+          textInput(
+            inputId     = paste0("floor", count),
+            label       = paste("Unit/Floor", count()),
+            width       = NULL,
+            placeholder = " "
+          ),
+          tab_tag,
+          checkboxInput(
+            inputId = paste0("floor_active", count),
+            label = paste("Currently Active"),
+            value = TRUE
+          ),
+          style = multiple_inputs_row_style
+        )
+        # selectize_input(
+        #   id = paste0("add_id", count),
+        #   label = paste("ID", count())
+        # ),
+      )
+    }
+
+    observeEvent(input$add_floor, {
+      count(count() + 1)
+      insertUI(selector = paste0("#", ns("additional_units")), ui = add_item(count()))
+    })
+
 
     observeEvent(input$submit_outbreak, {
       if (!input$facility %in% df$facility) {
